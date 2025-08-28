@@ -1,0 +1,10 @@
+[project]
+name = "postgis-backup-tool"
+version = "0.1.0"
+description = "Native PostGIS backup/restore (env-driven) with pg_dump/pg_restore"
+requires-python = ">=3.9"
+# Dependencies are managed via requirements.txt on purpose.
+
+[build-system]
+requires = []
+build-backend = "setuptools.build_meta"
