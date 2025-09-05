@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+import os
 import sys
 
 from dotenv import load_dotenv
@@ -24,6 +25,12 @@ def main():
     cmd = ["pg_dump", uri, "-f", out_file]
     if info["schema"]:
         cmd += ["-n", info["schema"]]
+
+    # Skip schema creation statements if SKIP_SCHEMA is enabled (default: true)
+    skip_schema = os.getenv("SKIP_SCHEMA", "true").lower() not in ("0", "false", "no")
+    if skip_schema:
+        cmd += ["--no-owner", "--no-privileges", "--no-tablespaces"]
+
     run(cmd)
     print("[INFO] Dump completed.")
 

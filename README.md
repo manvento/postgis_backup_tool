@@ -23,6 +23,7 @@ JDBC_USER=your_user
 
 Additional optional environment variables:
 ```
+SKIP_SCHEMA=true              # Skip schema creation statements in dump and restore (default: true)
 FORCE_ROLE=your_role          # Force all restored objects to this role
 NO_OWNER=true                 # If set, ignore object ownership
 SCHEMA_MAP_FROM=old_schema    # Original schema name in the dump

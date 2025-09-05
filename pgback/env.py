@@ -60,6 +60,7 @@ def resolve_pg_from_env():
         "host": parsed["host"],
         "port": parsed["port"],
         "database": parsed["database"],
+        "user": env["user"]
     }
 
 

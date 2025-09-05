@@ -17,6 +17,9 @@ from pgback.run import run
 FORCE_ROLE = os.getenv("FORCE_ROLE")
 NO_OWNER = os.getenv("NO_OWNER", "1").lower() not in ("0", "false", "no")
 
+# Skip schema creation statements (default: true)
+SKIP_SCHEMA = os.getenv("SKIP_SCHEMA", "true").lower() not in ("0", "false", "no")
+
 # Direct schema remap inside the plain SQL (no CREATE/RENAME SCHEMA)
 # Example: SCHEMA_MAP_FROM=myschema_in_dump  SCHEMA_MAP_TO=public
 SCHEMA_MAP_FROM = os.getenv("SCHEMA_MAP_FROM")
@@ -66,6 +69,7 @@ def preprocess_plain_sql(sql_text: str, src_schema: str | None, dst_schema: str 
     Rewrite the plain SQL:
       - Optionally SET ROLE <FORCE_ROLE>;
       - Optionally strip OWNER/privilege statements if NO_OWNER=1;
+      - Optionally skip schema creation statements if SKIP_SCHEMA=1;
       - Ensure PostGIS extensions are not (re)created here (we handle them separately);
       - If src_schema/dst_schema are provided, rewrite:
           * CREATE/ALTER/COMMENT SCHEMA on src_schema -> remove
@@ -88,7 +92,16 @@ def preprocess_plain_sql(sql_text: str, src_schema: str | None, dst_schema: str 
         # Also drop COMMENT ON EXTENSION ownership comments (rare, but harmless to remove)
         out = re.sub(r'(?im)^\s*COMMENT\s+ON\s+(TABLE|SEQUENCE|VIEW|MATERIALIZED\s+VIEW|FUNCTION|TYPE|SCHEMA|DATABASE|INDEX)\s+.*?;\s*', r'\g<0>', out)  # keep comments; we don't remove these broadly
 
-    # 3) Schema rewrite
+    # 3) If SKIP_SCHEMA, remove general schema creation statements
+    if SKIP_SCHEMA:
+        # Remove CREATE SCHEMA statements (for any schema)
+        out = re.sub(r'(?im)^\s*CREATE\s+SCHEMA\s+[^;]*;\s*', "", out)
+        # Remove ALTER SCHEMA ... OWNER TO statements (for any schema)
+        out = re.sub(r'(?im)^\s*ALTER\s+SCHEMA\s+[^;]*\s+OWNER\s+TO\s+[^;]*;\s*', "", out)
+        # Remove COMMENT ON SCHEMA statements (for any schema)
+        out = re.sub(r'(?im)^\s*COMMENT\s+ON\s+SCHEMA\s+[^;]*;\s*', "", out)
+
+    # 4) Schema rewrite
     if src_schema and dst_schema:
         # Remove CREATE/ALTER/COMMENT SCHEMA for src_schema
         patterns_drop = [
@@ -118,7 +131,7 @@ def preprocess_plain_sql(sql_text: str, src_schema: str | None, dst_schema: str 
         out = re.sub(rf'(?<![\w"])("{re.escape(src_schema)}")\.', _repl, out)
         out = re.sub(rf'(?<![\w"])({re.escape(src_schema)})\.', _repl, out)
 
-    # 4) Prepend SET ROLE if requested
+    # 5) Prepend SET ROLE if requested
     if FORCE_ROLE:
         out = f'SET ROLE {FORCE_ROLE};\n{out}'
 
